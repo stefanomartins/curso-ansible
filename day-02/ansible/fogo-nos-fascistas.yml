@@ -1,0 +1,6 @@
+--- 
+- hosts: all
+  become: yes
+  user: ubuntu
+  roles:
+    - fogo-nos-fascistas

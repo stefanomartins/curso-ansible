@@ -1,0 +1,17 @@
+server {
+	listen 80;
+	listen [::]:80;
+
+	root /srv/www/fogo-nos-fascistas.org/public_html;
+
+	access_log /srv/www/fogo-nos-fascistas.org/logs/access.log combined;
+	error_log /srv/www/fogo-nos-fascistas.org/logs/error.log;
+
+	index index.html index.htm index.nginx-debian.html;
+
+	server_name fogo-nos-fascistas.org;
+
+	location / {
+		try_files $uri $uri/ =404;
+	}
+}

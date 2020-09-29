@@ -1,0 +1,62 @@
+---
+- name: Adiciona repositório do Nginx
+  apt_repository:
+    repo: "ppa:nginx/stable"
+    state: present
+    update_cache: yes
+
+- name: Instala pacote do Nginx
+  apt:
+    name: nginx
+    state: present
+
+- name: Cria diretórios para hospedar o site
+  file:
+    group: www-data
+    mode: 0755
+    owner: www-data
+    path: "{{ item }}"
+    state: directory
+  with_items: 
+    - "/srv/www/{{ domain_name }}/logs"
+    - "/srv/www/{{ domain_name }}/public_html"
+
+- name: Cria arquivo de configuração do Nginx
+  template:
+   backup: yes
+   dest: "/etc/nginx/sites-available/{{ domain_name }}"
+   group: root
+   mode: 0644
+   owner: root
+   src: nginx-config.j2
+
+- name: Ativa o novo virtualhost
+  file:
+    group: root
+    mode: 0644
+    owner: root
+    src: "/etc/nginx/sites-available/{{ domain_name }}"
+    state: link
+    dest: "/etc/nginx/sites-enabled/{{ domain_name }}"
+
+- name: Cria o arquivo index.html
+  template:
+   backup: yes
+   dest: "/srv/www/{{ domain_name }}/public_html/index.html"
+   group: www-data
+   mode: 0644
+   owner: www-data
+   src: index.html.j2
+
+- name: Seta as permissões corretas para os diretórios
+  file:
+   group: www-data
+   mode: "u=rwX,g=rX,o=rX"
+   owner: www-data
+   path: "/srv/www"
+   recurse: yes
+
+- name: Recarrega o serviço do Nginx
+  service:
+    name: nginx
+    state: reloaded

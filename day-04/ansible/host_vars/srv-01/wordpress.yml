@@ -1,0 +1,9 @@
+---
+wp_domain: 192.168.0.100
+wp_port: 80
+wp_mysql_host: 127.0.0.1  # utilizado somente pela role wordpress-normal
+wp_mysql_user: wp
+wp_mysql_db: wp
+wp_title: Meu Site
+wp_admin_user: administrator
+wp_admin_email: admin@admin.org

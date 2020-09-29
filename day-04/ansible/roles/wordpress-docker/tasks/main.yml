@@ -1,0 +1,120 @@
+---
+- name: Instala pacotes essenciais
+  apt:
+    name: ['apt-transport-https', 'ca-certificates', 'curl', 'gnupg-agent', 'software-properties-common', 'python-pip', 'python3-pip']
+    state: present
+    update_cache: yes
+  tags:
+    - docker
+
+- name: Adiciona chave do repositório Docker
+  apt_key:
+    state: present
+    url: https://download.docker.com/linux/ubuntu/gpg
+  tags:
+    - docker
+
+- name: Adiciona repositório do Docker
+  apt_repository:
+    filename: docker
+    repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable"
+    state: present
+    update_cache: yes
+  tags:
+    - docker
+
+- name: Instala novos pacotes do Docker
+  apt:
+    name: ['docker-ce', 'docker-ce-cli', 'containerd.io']
+    state: present
+    update_cache: yes
+  tags:
+    - docker
+
+- name: Verifica se o Docker Compose está instalado no sistema
+  stat:
+    path: /usr/local/bin/docker-compose
+  become: yes
+  register: docker_compose_install
+  tags:
+    - docker
+
+- name: Efetua o Download do Docker Compose
+  shell: curl -L https://github.com/docker/compose/releases/download/1.26.2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose warn=false
+  become: yes
+  when: docker_compose_install.stat.exists == False
+  tags:
+    - docker
+
+- name: Seta as devidas permissões para o arquivo do Docker Compose
+  file:
+    group: root
+    mode: "a+x"
+    owner: root
+    path: /usr/local/bin/docker-compose
+  become: yes
+  when: docker_compose_install.stat.exists == False
+  tags:
+    - docker
+
+- name: Instala bibliotecas do Python para Docker
+  pip:
+    name: docker
+    state: present
+  tags:
+    - docker
+
+- name: Cria diretório para a aplicação
+  file:
+    group: root
+    mode: 0755
+    owner: root
+    path: "/srv/apps/{{ wp_domain }}"
+    state: directory
+  tags:
+    - wordpress
+
+- name: Gera o arquivo de template do Docker Compose
+  template:
+    backup: yes
+    dest: "/srv/apps/{{ wp_domain }}/docker-compose.yml"
+    group: root
+    mode: 0644
+    owner: root
+    src: docker-compose.yml.j2
+  tags:
+    - wordpress
+
+- name: Sobe o site
+  shell: docker-compose -p "{{ wp_domain }}" up -d
+  args:
+    chdir: "/srv/apps/{{ wp_domain }}"
+    executable: /bin/bash
+  tags:
+    - wordpress
+
+- name: Aguarda 2 minutos até os containers estarem levantados
+  pause:
+    minutes: 2
+  tags:
+    - wordpress
+
+- name: Efetua a instalação do WordPress
+  docker_container:
+    auto_remove: yes
+    command: wp core install --url="{{ wp_domain }}" --title="{{ wp_title }}" --admin_user="{{ wp_admin_user }}" --admin_password="{{ wp_admin_pass }}" --admin_email="{{ wp_admin_email }}"
+    image: wordpress:cli
+    interactive: yes
+    name: wordpress_cli
+    working_dir: /var/www/html
+    networks: 
+      - name: "{{ wp_domain | regex_replace('\\.', '') }}_default" 
+        links:
+          - "{{ wp_domain | regex_replace('\\.', '') }}_wordpress_1:wordpress"
+          - "{{ wp_domain | regex_replace('\\.', '') }}_db_1:db"
+    networks_cli_compatible: yes
+    tty: yes
+    volumes_from:
+      - "{{ wp_domain | regex_replace('\\.','') }}_wordpress_1"
+  tags:
+    - wordpress

@@ -1,0 +1,10 @@
+[all]
+srv-01 ansible_host=192.168.0.100 ansible_user=ubuntu
+srv-02 ansible_host=192.168.0.101 ansible_user=ubuntu
+
+[sao_paulo]
+srv-[01:30].forabolsonaro.agora ansible_user=ubuntu
+
+[natal]
+mdb-[a:t].fogo-nos-fascista.agora ansible_user=ubuntu
+

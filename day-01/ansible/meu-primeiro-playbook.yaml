@@ -1,0 +1,19 @@
+--- 
+- hosts: all
+  become: yes
+  user: ubuntu
+  tasks:
+    - name: Instala os pacotes
+      apt:
+        name: ['nmap', 'git', 'iptraf', 'htop']
+        state: present
+        update_cache: yes 
+
+    - name: Copia o arquivo meu-arquivo.txt para o servidor
+      copy:
+        backup: yes
+        dest: /home/ubuntu/meu-arquivo.txt
+        group: ubuntu
+        mode: 0640
+        owner: ubuntu
+        src: meu-arquivo.txt

@@ -1,0 +1,30 @@
+--- 
+- hosts: all
+  become: yes
+  user: embras
+  tasks:
+    - name: Cria diversos diretórios dentro do servidor
+      file:
+        group: www-data
+        mode: 0755
+        owner: www-data
+        path: "{{ item }}"
+        recurse: yes
+        state: directory
+      when: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '16.04'
+      with_items:
+        - /srv/www/site1.com
+        - /srv/www/site2.com
+        - /srv/www/site3.com
+        - /srv/www/site4.com
+
+    - name: Cria diversos diretórios dentro do servidor (2a forma)
+      file:
+        group: www-data
+        mode: 0755
+        owner: www-data
+        path: "/srv/www/site{{ item }}.com"
+        recurse: yes
+        state: directory
+      when: ansible_distribution == 'Ubuntu' and ansible_distribution_version == '16.04'
+      with_sequence: start=1 end=4 format=site%02d

@@ -1,0 +1,207 @@
+---
+- name: Cria diretórios para armazenamento do site
+  file:
+   group: www-data
+   mode: 0755
+   owner: www-data
+   path: "{{ item }}"
+   recurse: yes
+   state: directory
+  with_items: 
+   - "/srv/www/{{ wp_domain }}/public_html"
+   - "/srv/www/{{ wp_domain }}/logs"
+  tags:
+    - nginx
+    - wordpress
+
+- name: Adiciona repositório do Nginx
+  apt_repository:
+   repo: "ppa:nginx/stable"
+   state: present
+   update_cache: yes
+  tags:
+    - nginx
+
+- name: Instala Nginx
+  apt:
+   name: nginx
+   state: present
+  tags:
+    - nginx
+
+- name: Instala MySQL
+  apt:
+   name: mysql-server
+   state: present
+  tags:
+    - mysql
+
+- name: Instala o expect
+  apt:
+   name: expect
+   state: present
+  tags:
+    - mysql
+
+- name: Cria script para instalação do MySQL
+  template:
+   dest: /tmp/mysql-install.sh
+   group: root
+   mode: 0755
+   owner: root
+   src: mysql-install.sh.j2
+  tags:
+    - mysql
+
+- name: Executa script para instalação do MySQL
+  shell: /tmp/mysql-install.sh
+  args:
+    executable: /bin/bash
+  tags: mysql
+
+- name: Instala pacotes para o PHP
+  apt:
+   name: ["php-fpm", "php-mysql", "php-curl", "php-gd", "php-mbstring", "php-mcrypt", "php-xml", "php-xmlrpc", "php-cli"]
+   state: present
+  tags:
+    - php
+
+- name: Acerta configuração do PHP
+  replace:
+   backup: yes
+   path: /etc/php/7.0/fpm/php.ini
+   regexp: "^;cgi.fix_pathinfo=1"
+   replace: "cgi.fix_pathinfo=0"
+  tags:
+    - php
+
+- name: Reinicia serviço do PHP
+  service:
+   name: php7.0-fpm
+   state: restarted
+  tags:
+    - php
+
+- name: Cria configuração do Nginx
+  template:
+   backup: yes
+   dest: "/etc/nginx/sites-available/{{ wp_domain }}"
+   group: root
+   mode: 0644
+   owner: root
+   src: nginx-config.j2
+  tags:
+    - nginx
+
+- name: Ativa virtualhost
+  file:
+   group: root
+   mode: 0644
+   owner: root
+   path: "/etc/nginx/sites-enabled/{{ wp_domain }}"
+   src: "/etc/nginx/sites-available/{{ wp_domain }}"
+   state: link
+  tags:
+    - nginx
+
+- name: Recarrega o serviço do Nginx
+  service:
+   name: nginx
+   state: reloaded
+  tags:
+    - nginx
+
+- name: Instala PIP
+  apt:
+   name: ["python-pip", "python3-pip"]
+   state: present
+  tags:
+    - mysql
+
+- name: Instala PyMySQL
+  pip:
+   name: PyMySQL
+   state: present
+  tags:
+    - mysql
+
+- name: Cria o banco de dados MySQL para o WordPress
+  mysql_db:
+   encoding: utf8
+   login_unix_socket: /var/run/mysqld/mysqld.sock
+   login_user: root
+   login_password: "{{ wp_mysql_root_pass }}"
+   name: "{{ wp_mysql_db }}"
+   state: present
+  tags:
+    - mysql
+    - wordpress
+
+- name: Cria usuário com permissões para o banco
+  mysql_user:
+   host: localhost
+   login_password: "{{ wp_mysql_root_pass }}"
+   login_unix_socket: /var/run/mysqld/mysqld.sock
+   login_user: root
+   name: "{{ wp_mysql_user }}"
+   password: "{{ wp_mysql_pass }}"
+   priv: '*.*:ALL'
+   state: present
+  tags:
+    - mysql
+    - wordpress
+
+- name: Efetua o download do wp-cli
+  get_url:
+   dest: /usr/local/bin/wp
+   group: root
+   mode: 0755
+   owner: root
+   url: https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+  tags:
+    - wordpress
+
+- name: Verifica se o WordPress está instalado
+  shell: wp --allow-root core is-installed
+  args:
+    executable: /bin/bash
+    chdir: "/srv/www/{{ wp_domain }}/public_html"
+  register: is_wp_installed
+  ignore_errors: yes
+  tags:
+    - wordpress
+
+- name: Mostra se o WordPress está instalado ou não
+  debug:
+   msg: "Não está instalado"
+  when: is_wp_installed.rc == 1
+  tags:
+    - wordpress
+
+- name: Efetua o download do WordPress
+  shell: wp --allow-root core download
+  args:
+   chdir: "/srv/www/{{ wp_domain }}/public_html"
+   executable: /bin/bash
+  when: is_wp_installed.rc == 1
+  ignore_errors: yes
+  tags:
+    - wordpress
+
+- name: Efetua a configuração do WordPress
+  shell: wp --allow-root config create --force --dbname={{ wp_mysql_db }} --dbuser={{ wp_mysql_user }} --dbpass={{ wp_mysql_pass }}
+  args:
+   chdir: "/srv/www/{{ wp_domain }}/public_html"
+   executable: /bin/bash
+  when: is_wp_installed.rc == 1
+  tags:
+    - wordpress
+
+- name: Efetua a instalação do WordPress
+  shell: wp --allow-root core install --url={{ wp_domain }} --title="{{ wp_title }}" --admin_user={{ wp_admin_user }} --admin_password={{ wp_admin_pass }} --admin_email={{ wp_admin_email }}
+  args:
+   chdir: "/srv/www/{{ wp_domain }}/public_html"
+   executable: /bin/bash
+  when: is_wp_installed.rc == 1
+  tags:
+    - wordpress

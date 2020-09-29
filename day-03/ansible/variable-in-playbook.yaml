@@ -1,0 +1,13 @@
+--- 
+- hosts: all
+  become: yes
+  user: ubuntu
+  vars:
+    filename: "/home/{{ ansible_user }}/meu-arquivo.txt"
+  tasks:
+    - name: Cria um arquivo com um nome lido da variável {{ filename }}
+      copy:
+       backup: yes
+       content: "Olá! Este é o meu curso de Ansible!"
+       dest: "{{ filename }}"
+       mode: 0644

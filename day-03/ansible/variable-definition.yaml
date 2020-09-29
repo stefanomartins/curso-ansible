@@ -1,0 +1,13 @@
+--- 
+- hosts: all
+  become: yes
+  tasks:
+    - name: Verifica se o arquivo /etc/nginx/nginx.conf existe
+      stat:
+       path: /etc/nginx/nginx.conf
+      register: nginx_file
+
+    - name: Mostra uma mensagem na tela quando o arquivo existe
+      debug:
+       msg: "O arquivo nginx.conf existe!"
+      when: nginx_file.stat.exists is defined and nginx_file.stat.exists

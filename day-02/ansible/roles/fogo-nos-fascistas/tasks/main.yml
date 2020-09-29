@@ -1,0 +1,62 @@
+---
+- name: Adiciona repositório do Nginx
+  apt_repository:
+    repo: "ppa:nginx/stable"
+    state: present
+    update_cache: yes
+
+- name: Instala pacote do Nginx
+  apt:
+    name: nginx
+    state: present
+
+- name: Cria diretórios para hospedar o site
+  file:
+    group: www-data
+    mode: 0755
+    owner: www-data
+    path: "{{ item }}"
+    state: directory
+  with_items: 
+    - /srv/www/fogo-nos-fascistas.org/logs
+    - /srv/www/fogo-nos-fascistas.org/public_html
+
+- name: Copia arquivo de configuração do virtualhost
+  copy:
+    backup: yes
+    dest: /etc/nginx/sites-available/fogo-nos-fascistas.org
+    group: root
+    mode: 0644
+    owner: root
+    src: fogo-nos-fascistas.org
+
+- name: Ativa o novo virtualhost
+  file:
+    group: root
+    mode: 0644
+    owner: root
+    src: /etc/nginx/sites-available/fogo-nos-fascistas.org
+    state: link
+    dest: /etc/nginx/sites-enabled/fogo-nos-fascistas.org
+
+- name: Copia arquivo index.html
+  copy:
+    backup: yes
+    dest: /srv/www/fogo-nos-fascistas.org/public_html/index.html
+    group: www-data
+    mode: 0644
+    owner: www-data
+    src: index.html
+
+- name: Seta as permissões corretas para os diretórios
+  file:
+   group: www-data
+   mode: "u=rwX,g=rX,o=rX"
+   owner: www-data
+   path: "/srv/www"
+   recurse: yes
+
+- name: Recarrega o serviço do Nginx
+  service:
+    name: nginx
+    state: reloaded

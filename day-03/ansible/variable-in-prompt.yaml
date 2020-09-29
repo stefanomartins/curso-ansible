@@ -1,0 +1,15 @@
+--- 
+- hosts: all
+  become: yes
+  user: ubuntu
+  vars_prompt:
+    - name: filename
+      prompt: "Qual é o nome do arquivo que você deseja salvar?"
+      private: no
+  tasks:
+    - name: Cria um arquivo com um nome lido da variável {{ filename }}
+      copy:
+       backup: yes
+       content: "Olá! Este é o meu curso de Ansible!"
+       dest: "{{ filename }}"
+       mode: 0644
